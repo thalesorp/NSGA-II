@@ -1,0 +1,5 @@
+# Python byte code files
+*.pyc
+
+# Annotations (junk)
+Annotations.txt
