@@ -12,13 +12,14 @@
 #                                                                              #
 ################################################################################
 
-from sample.nsga2 import NSGA2
+'''Class'''
+
+from sample.nsga2 import NSGA2 # pylint: disable=import-error
 
 def run():
-    # Organiza aqui tudo que será passado para o NSGA-II.
-    # Depois disso, chamar 'myNSGA2.run()'.
-    myNSGA2 = NSGA2()
-    myNSGA2.run()
+    '''Method responsible for calling the NSGA-II.'''
+    my_nsga2 = NSGA2()
+    my_nsga2.run()
 
 if __name__ == '__main__':
     run()
