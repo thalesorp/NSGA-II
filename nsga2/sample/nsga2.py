@@ -32,150 +32,145 @@ class NSGA2:
 
     # Constructor
     def __init__(self):
-        random.seed(3)
-        self.population = list()
+        random.seed(1)
+        self.population = None
+        # List with all fronts.
+        self.fronts = list()
+        self.fronts.append([])
 
     # Methods
     def run(self):
         '''Method responsible for running the main loop of NSGA2.'''
-        self.start_new_population()
 
-        self._show_population()
+        ''' Starts with one population of size 'POPULATION_SIZE'.
+        It's created the children of this population, that will be the quantity of 'OFFSPRING_SIZE'.
+        The creation of those children is made by crossover and mutation.
+        Sort them with: non-dominated sorting.
+        Take the best individual according with: crowding distance sorting.
+        'POPULATION_SIZE' is the max size of the new population.
+        Back to beginning. Repeated N generations.
+        ''' # pylint: disable=pointless-string-statement
+
+        #self.start_new_population()
+        self.start_new_population_debug()
 
         self.non_dominated_sorting()
 
-        # pylint: disable=pointless-string-statement
-        '''
-        Starts with one population of size 'POPULATION_SIZE'.
-        It's created the children of this population, that will be the quantity of 'OFFSPRING_SIZE'.
-        The creation of those children is made by:
-            crossover;
-            mutation.
-        Sort them with: Non-dominated sorting.
-        Take the best individual according with: Crowding distance sorting.
-        Max size of the new population is: 'POPULATION_SIZE'.
-        Go back to beginning.
-        '''
+    def start_new_population(self):
+        '''Initialize a new population.'''
+
+        names = 'ABCDEFGHIJKL'
+        self.population = list()
+
+        for i in range(self.POPULATION_SIZE):
+            x_value = random.randint(self.X_MIN_VALUE, self.X_MAX_VALUE)
+            y_value = random.randint(self.Y_MIN_VALUE, self.Y_MAX_VALUE)
+            individual = Individual(names[i], x_value, y_value)
+            self.population.append(individual)
 
     def non_dominated_sorting(self):
         '''Non-dominated sorting algorithm.'''
 
-        # pylint: disable=pointless-string-statement
-        '''
-        Step 1: Everyone check with everyone who dominates who.
-                Then, fill up the GDI list (which by the way, each position
-                correlate with each individual) with:
-                    - Domination count = quantity of individuals dominates this individual;
-                    - Dominated by = list of individuals that are dominated by.
-                The result is:
-                general_domination_info = [ [domination_count, [dominated_by_list] ], ...]
-        '''
+        ''' Everyone check with everyone who dominates who, filling up
+        "domination_count" and "dominated_by" attributes of each individual.
+        Also, the first front is created.
+        Then the remaining individuals are divided into fronts.
+        ''' # pylint: disable=pointless-string-statement
 
-        general_domination_info = list()
-        # Each of individuals checks if dominates or is dominated by everyone else.
+        # Each of individuals checks if dominates or is dominated with everyone else.
         for i in range(self.POPULATION_SIZE):
-            # Quantity of individuals dominates this individual.
-            domination_count = 0
-            # List of individuals that are dominated by this individual.
-            dominated_by = list()
+            #print("\n", self.population[i])
 
             for j in range(self.POPULATION_SIZE):
+                current_individual = self.population[i]
+                other_individual = self.population[j]
+
                 if i != j: # Ignoring itself.
-                    if self.population[i].dominates(self.population[j]):
-                        dominated_by.append(j)
-                    else:
-                        domination_count += 1
+                    # Checking if dominates or are dominated by the other individuals.
+                    if current_individual.dominates(other_individual):
+                        current_individual.dominated_by.append(other_individual)
+                        #sys.stdout.write("  " + current_individual.name + " dominates " + other_individual.name + ".\n")
+                    elif other_individual.dominates(current_individual):
+                        current_individual.domination_count += 1
+                        #sys.stdout.write("  " + current_individual.name + " is dominated by " + other_individual.name + ".\n")
 
-            general_domination_info.append([domination_count, dominated_by])
+            # Checking if current individual is eligible to the first front.
+            if current_individual.domination_count == 0:
+                if current_individual not in self.fronts[0]:
+                    self.fronts[0].append(current_individual)
 
-        #self._show_GDI(general_domination_info)
+        print("Initially:")
+        self._show_general_domination_info()
 
-        # pylint: disable=pointless-string-statement
-        '''
-        Step 2: Now is the time to divide them into fronts.
-                While there's individuals with "domination_count = 0" do:
-                    Add all with 'domination_count = 0' to current front.
-                    Iterates over them and then over all dominated_by lists:
-                        decrement they domination_count by one.
-            The result is:
-            fronts = [ [individuals of front 0], [individuals of front 1], ... ]
-        '''
-
-        # List with all fronts.
-        fronts = list()
         # Temporary list with the current front.
         current_front = list()
 
-        while NSGA2._check_domination_count(general_domination_info):
-
-            self._show_GDI(general_domination_info)
-
-            sys.stdout.write("Fronts:")
-            print(fronts)
-
-            for individual in range(self.POPULATION_SIZE):
-                domination_count = general_domination_info[individual][0]
-                # If there's no domination over this individual, add him to the current front.
-                if domination_count == 0:
-                    general_domination_info[individual][0] -= 1
-                    current_front.append(individual)
-            # When the current front is over, add it to the fronts list.
-            fronts.append(current_front)
+        i = 0
+        while len(self.fronts[i]) > 0: # pylint: disable=len-as-condition
             current_front = list()
+            for individual in self.fronts[i]:
+                for dominated_individual in individual.dominated_by:
+                    dominated_individual.domination_count -= 1
+                    ''' Now if this dominated individual aren't dominated by anyone,
+                    insert into next front.''' # pylint: disable=pointless-string-statement
+                    if dominated_individual.domination_count == 0:
+                        current_front.append(dominated_individual)
+            self.fronts.append(current_front)
+            i += 1
 
-            # Iterating over the last added front.
-            last_front_position = fronts[len(fronts)-1]
-            for i in range(len(last_front_position)):
-
-                individual = fronts[len(fronts)-1][i]
-
-                dominated_by_list = general_domination_info[individual][1]
-
-                # Iterating over the list of individuals of this especific individual.
-                for j, individual_that_dominates in enumerate(dominated_by_list):
-                    # Decrementing domination_count of each individual that dominates.
-                    general_domination_info[individual_that_dominates][0] -= 1
-
-            input()
+        # Deleting empty last position created in previously loops.
+        del self.fronts[len(self.fronts)-1]
 
         print("Finally:")
-        self._show_GDI(general_domination_info)
+        self._show_general_domination_info()
+        self._show_fronts()
 
-    def start_new_population(self):
-        '''Initialize a new population.'''
-        for _ in range(self.POPULATION_SIZE):
-            x_value = random.randint(self.X_MIN_VALUE, self.X_MAX_VALUE)
-            y_value = random.randint(self.Y_MIN_VALUE, self.Y_MAX_VALUE)
-            individual = Individual(x_value, y_value)
-            self.population.append(individual)
+    # Debug
+    def start_new_population_debug(self):
+        '''DEBUG: Initialize a new population.'''
+        self.population = list()
+
+        individual = Individual('A', 3, 3)
+        self.population.append(individual)
+
+        individual = Individual('B', 4, 2)
+        self.population.append(individual)
+
+        individual = Individual('C', 1, 2)
+        self.population.append(individual)
+
+        individual = Individual('D', 1, 1)
+        self.population.append(individual)
+
+        individual = Individual('E', 2, 1)
+        self.population.append(individual)
+
+        #individual = Individual('F', 3, 2)
+        #self.population.append(individual)
 
     def _show_population(self):
         '''Show the x and y values of each individual of population.'''
         print("i(x,y)")
-        for i in range(self.POPULATION_SIZE):
-            sys.stdout.write(str(i) + "(" + str(self.population[i].x_value)
-                             + "," + str(self.population[i].y_value) + ")\n")
+        for individual in self.population:
+            print(individual)
+
+    def _show_general_domination_info(self):
+        '''Show all data of population.'''
+        for individual in self.population:
+            sys.stdout.write("  Individual: " + str(individual) +
+                             "\tdomination count: " + str(individual.domination_count) +
+                             "\tdominated by this: ")
+            for dominated_individual in individual.dominated_by:
+                sys.stdout.write(str(dominated_individual.name) + ", ")
+            print("")
         print("")
 
-    def _show_GDI(self, general_domination_info):
-        for i in range(self.POPULATION_SIZE):
-            domination_count = general_domination_info[i][0]
-            dominated_by = general_domination_info[i][1]
-            print("Individual:", i, "\tdomination_count:", domination_count,
-                  "\tdominated by:", dominated_by)
-        print("")
-
-    @staticmethod
-    def _check_domination_count(general_domination_info):
-        '''Check if there's at least one individual with "domination_count = 0".
-            If there is, True is returned. Otherwise, False.'''
-        for info in general_domination_info:
-            if info[0] <= 1:
-                return True
-        return False
-
-    @staticmethod
-    def _show_fronts(fronts):
+    def _show_fronts(self):
         '''Show all fronts.'''
-        for front in fronts:
-            print(front)
+        i = 1
+        for front in self.fronts:
+            sys.stdout.write("Front " + str(i) + ": ")
+            i += 1
+            for individual in front:
+                sys.stdout.write(str(individual) + ", ")
+            print("")
