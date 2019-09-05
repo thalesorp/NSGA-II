@@ -25,6 +25,7 @@ class Individual:
 
         # Quantity of individuals that dominates this individual.
         self.domination_count = 0
+
         # List of individuals that are dominated by this individual.
         self.dominated_by = list()
 

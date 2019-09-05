@@ -13,16 +13,17 @@
 ################################################################################
 
 '''Main class of NSGA-II.'''
+
 import sys
 import random
 
-from .individual import Individual
+from .population import Population
 
 import matplotlib.pyplot as plt
 import numpy as np
 
 class NSGA2:
-    '''Main class of the algorithm.'''
+    '''Main class of the NSGA-II algorithm.'''
 
     # Attributes
     POPULATION_SIZE = 10
@@ -38,14 +39,10 @@ class NSGA2:
     def __init__(self):
         random.seed(3)
 
-        self.population = None
-        self.offspring = None
-
-        self.x_values = list()
-        self.y_values = list()
-
-        # List with all fronts.
-        self.fronts = list()
+        self.population = Population(
+            self.POPULATION_SIZE, self.OFFSPRING_SIZE,
+            self.X_MIN_VALUE, self.X_MAX_VALUE,
+            self.Y_MIN_VALUE, self.Y_MAX_VALUE)
 
     # Methods
     def run(self):
@@ -60,31 +57,25 @@ class NSGA2:
         Back to beginning. Repeated N generations.
         ''' # pylint: disable=pointless-string-statement
 
-        self.start_new_population()
+        self.population.start_new_population()
+        #self.start_new_population()
         #self.start_new_population_debug()
+
+        print("Initially:")
+        self.population._show_general_domination_info()
 
         self.non_dominated_sorting()
 
+        print("Finally:")
+        self.population._show_general_domination_info()
+        self.population._show_fronts()
+
         self.crowding_distance_sorting()
 
-        self._show_offspring()
+        self.population._show_offspring()
 
         #self._plot_individuals()
         self._plot_individuals_fronts()
-
-    def start_new_population(self):
-        '''Initialize a new population.'''
-
-        names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
-        self.population = list()
-
-        for i in range(self.POPULATION_SIZE):
-            x_value = random.randint(self.X_MIN_VALUE, self.X_MAX_VALUE)
-            self.x_values.append(x_value)
-            y_value = random.randint(self.Y_MIN_VALUE, self.Y_MAX_VALUE)
-            self.y_values.append(y_value)
-            individual = Individual(names[i], x_value, y_value)
-            self.population.append(individual)
 
     def non_dominated_sorting(self):
         '''Sort the individuals according to they dominance and sort them into fronts.'''
@@ -92,73 +83,60 @@ class NSGA2:
         ''' Everyone check with everyone who dominates who, filling up
         "domination_count" and "dominated_by" attributes of each individual.
         Also, the first front is created.
-        Then the remaining individuals are divided into fronts.
-        ''' # pylint: disable=pointless-string-statement
+        Then the remaining individuals are divided into fronts.'''
 
-        self.fronts.append([])
+        self.population.fronts.append([])
 
         # Each of individuals checks if dominates or is dominated with everyone else.
         for i in range(self.POPULATION_SIZE):
-            #print("\n", self.population[i])
-
             for j in range(self.POPULATION_SIZE):
-                current_individual = self.population[i]
-                other_individual = self.population[j]
+                current_individual = self.population.individuals[i]
+                other_individual = self.population.individuals[j]
 
                 if i != j: # Ignoring itself.
                     # Checking if dominates or are dominated by the other individuals.
                     if current_individual.dominates(other_individual):
                         current_individual.dominated_by.append(other_individual)
-                        #sys.stdout.write("  " + current_individual.name + " dominates " + other_individual.name + ".\n")
                     elif other_individual.dominates(current_individual):
                         current_individual.domination_count += 1
-                        #sys.stdout.write("  " + current_individual.name + " is dominated by " + other_individual.name + ".\n")
 
             # Checking if current individual is eligible to the first front.
             if current_individual.domination_count == 0:
-                if current_individual not in self.fronts[0]:
-                    self.fronts[0].append(current_individual)
-
-        print("Initially:")
-        self._show_general_domination_info()
+                if current_individual not in self.population.fronts[0]:
+                    self.population.fronts[0].append(current_individual)
 
         # Temporary list with the current front.
         current_front = list()
 
         i = 0
-        while len(self.fronts[i]) > 0: # pylint: disable=len-as-condition
+        while len(self.population.fronts[i]) > 0: # pylint: disable=len-as-condition
             current_front = list()
-            for individual in self.fronts[i]:
+            for individual in self.population.fronts[i]:
                 for dominated_individual in individual.dominated_by:
                     dominated_individual.domination_count -= 1
                     ''' Now if this dominated individual aren't dominated by anyone,
-                    insert into next front.''' # pylint: disable=pointless-string-statement
+                    insert into next front.'''
                     if dominated_individual.domination_count == 0:
                         current_front.append(dominated_individual)
-            self.fronts.append(current_front)
+            self.population.fronts.append(current_front)
             i += 1
 
         # Deleting empty last position created in previously loops.
-        del self.fronts[len(self.fronts)-1]
-
-        print("Finally:")
-        self._show_general_domination_info()
-        self._show_fronts()
+        del self.population.fronts[len(self.population.fronts)-1]
 
     def crowding_distance_sorting(self):
         '''Crowding distance sorting algorithm.'''
 
-        self.offspring = list()
         individual_remaining = self.OFFSPRING_SIZE
 
         # Filling up the offspring with the first fronts.
-        for front in self.fronts:
+        for front in self.population.fronts:
             front_size = len(front)
             # Checking if the current front fits on offspring.
             if front_size <= individual_remaining:
                 # Putting one by one on offspring.
                 for individual in front:
-                    self.offspring.append(individual)
+                    self.population.offspring.append(individual)
                     individual_remaining -= 1
             else:
                 # The current front is stored.
@@ -182,7 +160,7 @@ class NSGA2:
         # Adding the last but not least individuals selected.
         i = 0
         while individual_remaining > 0:
-            self.offspring.append(remaining_front[index_list[i]])
+            self.population.offspring.append(remaining_front[index_list[i]])
             individual_remaining -= 1
             i += 1
 
@@ -213,70 +191,14 @@ class NSGA2:
             sum_list.insert(0, sys.maxsize)
             individual_list.insert(i, lowest)
 
-    # Debug
-    def start_new_population_debug(self):
-        '''DEBUG: Initialize a new population.'''
-        self.population = list()
-
-        individual = Individual('A', 3, 3)
-        self.population.append(individual)
-
-        individual = Individual('B', 4, 2)
-        self.population.append(individual)
-
-        individual = Individual('C', 1, 2)
-        self.population.append(individual)
-
-        individual = Individual('D', 1, 1)
-        self.population.append(individual)
-
-        individual = Individual('E', 2, 1)
-        self.population.append(individual)
-
-        individual = Individual('F', 3, 2)
-        self.population.append(individual)
-
-    def _show_population(self):
-        '''Show the x and y values of each individual of population.'''
-        print("i(x,y)")
-        for individual in self.population:
-            print(individual)
-
-    def _show_general_domination_info(self):
-        '''Show all data of population.'''
-        for individual in self.population:
-            sys.stdout.write("  Individual: " + str(individual) +
-                             "\tdomination count: " + str(individual.domination_count) +
-                             "\tdominated by this: ")
-            for dominated_individual in individual.dominated_by:
-                sys.stdout.write(str(dominated_individual.name) + ", ")
-            print("")
-        print("")
-
-    def _show_fronts(self):
-        '''Show all fronts.'''
-        i = 1
-        for front in self.fronts:
-            sys.stdout.write("Front " + str(i) + ": ")
-            i += 1
-            for individual in front:
-                sys.stdout.write(str(individual) + ", ")
-            print("")
-
-    def _show_offspring(self):
-        '''Show individuals of the offspring.'''
-        print("\nOffspring:")
-        for individual in self.offspring:
-            sys.stdout.write(str(individual) + ", ")
-        print("")
-
     def _show_individuals_from_list(self, individual_list):
         for individual in individual_list:
             sys.stdout.write(str(individual) + ', ')
         print()
 
+    # Plotting
     def _plot_individuals(self):
-        plt.plot(self.x_values, self.y_values, 'ko')
+        plt.plot(self.population.x_values, self.population.y_values, 'ko')
         plt.axis([self.X_MIN_VALUE, self.X_MAX_VALUE, self.Y_MIN_VALUE, self.Y_MAX_VALUE])
         plt.xticks(np.arange(self.X_MIN_VALUE, self.X_MAX_VALUE+1, 1.0))
         plt.yticks(np.arange(self.Y_MIN_VALUE, self.Y_MAX_VALUE+1, 1.0))
@@ -288,7 +210,7 @@ class NSGA2:
         x_values = list()
         y_values = list()
 
-        for front in self.fronts:
+        for front in self.population.fronts:
             x_values = list()
             y_values = list()
             for individual in front:
