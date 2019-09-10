@@ -23,6 +23,8 @@ class Individual:
         self.x_value = x_value
         self.y_value = y_value
 
+        self.crowding_distance = 0
+
         # Quantity of individuals that dominates this individual.
         self.domination_count = 0
 
@@ -46,3 +48,6 @@ class Individual:
         d = bool(self.y_value < individual.y_value) # pylint: disable=invalid-name
 
         return (a and b) and (c or d)
+
+    def evaluate(self):
+        pass

@@ -47,24 +47,29 @@ class Population:
         self.offspring = list()
 
         # Used to plot the individuals.
-        self.x_values = list()
-        self.y_values = list()
+        #self.x_values = list()
+        #self.y_values = list()
 
     # Methods
     def start_new_population(self):
         '''Initialize a new population.'''
 
-        names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+        names = 'ABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZABCDEFGHIJKLMNOPQRSTUVWXYZ'
 
         for i in range(self.population_size):
             x_value = random.randint(self.x_min_value, self.x_max_value)
-            self.x_values.append(x_value)
+            #self.x_values.append(x_value)
 
             y_value = random.randint(self.y_min_value, self.y_max_value)
-            self.y_values.append(y_value)
+            #self.y_values.append(y_value)
 
             new_individual = Individual(names[i], x_value, y_value)
             self.individuals.append(new_individual)
+
+    def sort_fronts_by_crowding_distance(self):
+        '''Sort the current fronts by the crowding distance value in ascending order.'''
+        for front in self.fronts:
+            front.sort(key=lambda x: x.crowding_distance, reverse=True)
 
     # Utils
     def _show_population(self):
@@ -92,6 +97,16 @@ class Population:
             i += 1
             for individual in front:
                 sys.stdout.write(str(individual) + ", ")
+            print("")
+
+    def _show_fronts_with_crowding_distance(self):
+        '''Show all fronts.'''
+        i = 1
+        for front in self.fronts:
+            sys.stdout.write("Front " + str(i) + ": ")
+            i += 1
+            for individual in front:
+                sys.stdout.write(str(individual) + ".CD: " + str(individual.crowding_distance) + ", ")
             print("")
 
     def _show_offspring(self):
